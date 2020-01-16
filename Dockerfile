@@ -29,17 +29,14 @@ RUN apt-get update && \
 	curl libcurl4-openssl-dev wget vim git
 
 RUN apt-get install -y libonig-dev
-RUN pecl channel-update pecl.php.net
-# RUN pecl install apcu mongodb
-RUN pecl install igbinary
-# compile Redis with igbinary support!
-RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
 
+RUN pecl channel-update pecl.php.net
+RUN pecl install igbinary
+RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
 RUN docker-php-ext-install bcmath sockets
-# RUN docker-php-ext-install mongodb && \
-# RUN dokcer-php-ext-install apcu  opcache &&  \ # Not really for dev
 RUN docker-php-ext-enable igbinary redis
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN dokcer-php-ext-install apcu opcache
+RUN dokcer-php-ext-install mongo 
 RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
 
 RUN echo '\
@@ -48,6 +45,8 @@ opcache.load_comments=Off\n\
 opcache.max_accelerated_files=16000\n\
 opcache.save_comments=Off\n\
 ' >> /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 RUN apt-get install libpq-dev libpq5
 
@@ -64,12 +63,13 @@ RUN rm -rf /var/lib/apt/lists/*
 #INSTALL XDEBUG
 RUN pecl install xdebug && docker-php-ext-enable xdebug
 #XDEBUG
+RUN echo "xdebug.remote_enable=1" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo "xdebug.idekey=\"PHPSTORM\"" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo "xdebug.remote_port=9000" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo "xdebug.remote_autostart=1" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo "xdebug.remote.mode=req" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo "xdebug.remote.handler=dbgp" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
-#INSTALL APCU
-#RUN pecl install apcu-${APCU_VERSION} && docker-php-ext-enable apcu
-#RUN echo "extension=apcu.so" >> /usr/local/etc/php/php.ini
-#RUN echo "apc.enable_cli=1" >> /usr/local/etc/php/php.ini
-#RUN echo "apc.enable=1" >> /usr/local/etc/php/php.ini
 
 COPY conf /etc/cron.d/cron
 RUN chmod 0755 /etc/cron.d/cron
@@ -77,15 +77,28 @@ RUN chmod 0755 /etc/cron.d/cron
 # Create the log file to be able to run tail
 RUN touch /var/log/cron.log
 
-CMD ["chmod -R 0777 /var/www/html/var/cache /var/www/html/var/log"]
+RUN chmod -R 0777 /var/www/html/var/cache /var/www/html/var/log
 
-COPY conf /usr/local/etc/php/php.ini
+COPY conf/php.ini /usr/local/etc/php/php.ini
 
 RUN curl -Lsf 'https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz' | tar -C '/usr/local' -xvzf -
 ENV PATH /usr/local/go/bin:$PATH
 RUN go get github.com/mailhog/mhsendmail
 RUN cp /root/go/bin/mhsendmail /usr/bin/mhsendmail
 RUN echo 'sendmail_path = /usr/bin/mhsendmail --smtp-addr mailhog:1025' >> /usr/local/etc/php/php.ini
+
+RUN apt-get update && apt-get install -y openssh-server openssh-sftp-server
+RUN mkdir ~/.ssh
+COPY conf/ssh/authorized_keys /root/.ssh/
+RUN chmod 700 ~/.ssh
+RUN chmod 600 ~/.ssh/authorized_keys
+RUN sed -i 's/^#\?PermitRootLogin .*$/PermitRootLogin without-password/' /etc/ssh/sshd_config
+RUN sed -i 's/^#\?PubkeyAuthentication .*$/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+
+
+
+COPY launcher.sh /tmp/
+RUN chmod +x /tmp/launcher.sh
 
 STOPSIGNAL SIGQUIT
 
