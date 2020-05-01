@@ -6,6 +6,6 @@
  * pdo, mysql, pgsql
  * bcmath curl gd intl json mbstring readline soap xml xmlrpc xsl zip
  * composer
- * xdebug on port 9000
+ * xdebug on port 9001
  * mail routed to mailhog:1025
  
