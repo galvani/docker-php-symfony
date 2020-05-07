@@ -37,19 +37,29 @@ RUN apt-get update && \
 	lsb-release \
 	cron \
 	libpq-dev \
-	libpq5
+	libpq5 \
+	libfreetype6-dev \
+	libjpeg-dev \
+    libjpeg62-turbo-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) gd
 
-RUN apt-get install -y	iproute2 \
+RUN apt-get update && \
+    apt-get install -y libfreetype6-dev libjpeg62-turbo-dev libpng-dev libgmp-dev libldap2-dev netcat sqlite3 libsqlite3-dev && \
+    docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ && \
+    docker-php-ext-install gd gmppcntl sysvmsg exif
+
+RUN apt-get install -y iproute2 \
 	net-tools \
 	wget \
 	vim \
-	git 
+	git
 
 RUN pecl channel-update pecl.php.net
 RUN pecl install igbinary
 RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
 RUN docker-php-ext-install bcmath sockets mysqli gettext
-RUN docker-php-ext-enable igbinary redis gettext
+RUN docker-php-ext-enable igbinary redis gettext gd exif
 RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
 
 RUN echo '\
@@ -61,9 +71,9 @@ opcache.save_comments=Off\n\
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-RUN apt-get install 
+RUN apt-get install
 
-RUN docker-php-ext-install pdo bcmath curl gd intl json mbstring readline soap xml xmlrpc xsl zip
+RUN docker-php-ext-install pdo bcmath curl intl json mbstring readline soap xml xmlrpc xsl zip
 RUN docker-php-ext-install mysqli pdo_mysql
 
 RUN mkdir -p /var/run/php
@@ -101,3 +111,4 @@ STOPSIGNAL SIGQUIT
 
 EXPOSE 9000
 CMD ["php-fpm"]
+
