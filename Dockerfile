@@ -54,7 +54,9 @@ RUN apt-get install --no-install-recommends -y libmcrypt-dev  \
     libfreetype6-dev \
     libssl-dev \
     libmcrypt-dev \
-    libonig-dev
+    libonig-dev \
+    nodejs \
+    npm
 
 RUN docker-php-ext-configure gd --prefix=/usr --with-freetype --with-webp=  --with-jpeg \
     && docker-php-ext-install gd exif && php -r 'var_dump(gd_info());'
