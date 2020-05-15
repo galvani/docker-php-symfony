@@ -1,4 +1,4 @@
-FROM php:7.1-fpm
+FROM php:7.4-fpm
 LABEL maintainer="galvani78@gmail.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -17,7 +17,7 @@ RUN locale-gen en_US.UTF-8
 
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 11CD8CFCEEB5E8F4
 
-RUN apt-get install --no-install-recommends -y
+RUN apt-get install --no-install-recommends -y \
     unzip \
     gnupg \
     libmcrypt-dev  \
