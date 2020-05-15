@@ -1,4 +1,4 @@
-FROM php:7.4-fpm
+FROM php:7.1-fpm
 LABEL maintainer="galvani78@gmail.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -15,11 +15,13 @@ RUN echo "export LANGUAGE=en_US.UTF-8 && export LANG=en_US.UTF-8 && export LC_AL
 RUN apt-get install -y unzip gnupg
 RUN locale-gen en_US.UTF-8
 
-RUN yes | apt-get install systemd
-
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 11CD8CFCEEB5E8F4
 
-RUN apt-get install --no-install-recommends -y libmcrypt-dev  \
+RUN apt-get install --no-install-recommends -y
+    unzip \
+    gnupg \
+    libmcrypt-dev  \
+    systemd \
 	libicu-dev \
 	libpng-dev \
 	zlib1g-dev \
@@ -64,8 +66,11 @@ RUN docker-php-ext-configure gd --prefix=/usr --with-freetype --with-webp=  --wi
 RUN pecl channel-update pecl.php.net
 RUN pecl install igbinary
 RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
-RUN docker-php-ext-install bcmath sockets mysqli gettext
 RUN docker-php-ext-enable igbinary redis
+
+RUN pecl install mongodb
+RUN docker-php-ext-enable mongodb
+
 RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
 
 RUN echo '\
