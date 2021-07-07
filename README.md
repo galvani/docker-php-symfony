@@ -1,8 +1,8 @@
 # docker-php-symfony
-## Docker PHP 7.4 for symfony development
+## Docker PHP 8.0 for symfony development
 
 ### Contains 
- * php FPM 7.4, xdebug 3.0
+ * php FPM 8.0, xdebug 3.0
  * redis with igbinary
  * pdo, mysql, pgsql
  * bcmath curl gd intl json mbstring readline soap xml xmlrpc xsl zip
@@ -14,4 +14,5 @@
  * 9000 - PHP FPM
 
 ### Ports opened to host
- * 
+ Yet to come ;-)
+ 

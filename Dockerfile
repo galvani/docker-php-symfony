@@ -1,4 +1,4 @@
-FROM php:7.4-fpm
+FROM php:8.0-fpm
 LABEL maintainer="galvani78@gmail.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -12,14 +12,16 @@ ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 
 RUN echo "export LANGUAGE=en_US.UTF-8 && export LANG=en_US.UTF-8 && export LC_ALL=en_US.UTF-8">>~/.bash_profile
-RUN apt-get install -y unzip gnupg
+RUN apt-get install -y 
 RUN locale-gen en_US.UTF-8
 
 RUN yes | apt-get install systemd
 
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 11CD8CFCEEB5E8F4
+# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 11CD8CFCEEB5E8F4
 
-RUN apt-get install --no-install-recommends -y libmcrypt-dev  \
+RUN apt-get install --no-install-recommends -y \
+	unzip \
+#	gnupglibmcrypt-dev  \
 	libicu-dev \
 	libpng-dev \
 	zlib1g-dev \
@@ -57,41 +59,40 @@ RUN apt-get install --no-install-recommends -y libmcrypt-dev  \
     libonig-dev
 
 RUN docker-php-ext-configure gd --prefix=/usr --with-freetype --with-webp=  --with-jpeg \
-    && docker-php-ext-install gd exif && php -r 'var_dump(gd_info());'
+    && docker-php-ext-install gd exif 
 
+#	Install redis and igbinary
 RUN pecl channel-update pecl.php.net
-RUN pecl install igbinary
+RUN pecl install igbinary mongodb
 RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
 RUN docker-php-ext-install bcmath sockets mysqli gettext
-RUN docker-php-ext-enable igbinary redis
+RUN docker-php-ext-enable igbinary redis mongodb
 RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
 
-RUN echo '\
-opcache.interned_strings_buffer=16\n\
-opcache.load_comments=Off\n\
-opcache.max_accelerated_files=16000\n\
-opcache.save_comments=Off\n\
-' >> /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+#	Configure opcache
+# RUN echo '\
+# opcache.interned_strings_buffer=16\n\
+# opcache.load_comments=Off\n\
+# opcache.max_accelerated_files=16000\n\
+# opcache.save_comments=Off\n\
+# ' >> /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-RUN docker-php-ext-install pdo bcmath curl intl json mbstring readline soap xml xmlrpc xsl zip
+RUN docker-php-ext-install pdo bcmath intl mbstring readline soap xsl zip
 RUN docker-php-ext-install mysqli pdo_mysql
 
 RUN mkdir -p /var/run/php
 
-RUN rm -rf /var/lib/apt/lists/*
+COPY conf/php.ini /usr/local/etc/php/php.ini
 
 #INSTALL XDEBUG
-RUN pecl install xdebug && docker-php-ext-enable xdebug
+RUN pecl install xdebug && docker-php-ext-enable xdebug 
 
-RUN echo "xdebug.mode=debug" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo "xdebug.idekey=\"PHPSTORM\"" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo "xdebug.client_port=9003" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo "xdebug.remote_autostart=1" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo "xdebug.remote.mode=req" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo "xdebug.remote.handler=dbgp" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.mode=debug >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.start_with_request=yes >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.idekey=\"PHPSTORM\" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.client_port=9003 >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.remote.mode=req >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.remote.handler=dbgp >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 RUN echo xdebug.client_host=`/sbin/ip route|awk '/default/ { print $3 }'` >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # INSTALL CRON FILES
@@ -101,7 +102,9 @@ RUN chmod 0755 /etc/cron.d/cron
 # Create the log file to be able to run tail
 RUN touch /var/log/cron.log
 
-COPY conf/php.ini /usr/local/etc/php/php.ini
+# Install composer version 2
+#RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 # Setup email forwarding via postfix to mailhog
 RUN curl -Lsf 'https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz' | tar -C '/usr/local' -xvzf -
@@ -109,6 +112,8 @@ ENV PATH /usr/local/go/bin:$PATH
 RUN go get github.com/mailhog/mhsendmail
 RUN cp /root/go/bin/mhsendmail /usr/bin/mhsendmail
 RUN echo 'sendmail_path = /usr/bin/mhsendmail --smtp-addr mailhog:1025' >> /usr/local/etc/php/php.ini
+
+RUN rm -rf /var/lib/apt/lists/*
 
 STOPSIGNAL SIGQUIT
 
