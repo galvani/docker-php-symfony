@@ -56,7 +56,8 @@ RUN apt-get install --no-install-recommends -y \
     libfreetype6-dev \
     libssl-dev \
     libmcrypt-dev \
-    libonig-dev
+    libonig-dev \
+	openssl
 
 RUN docker-php-ext-configure gd --prefix=/usr --with-freetype --with-webp=  --with-jpeg \
     && docker-php-ext-install gd exif 
@@ -66,34 +67,26 @@ RUN pecl channel-update pecl.php.net
 RUN pecl install igbinary mongodb
 RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
 RUN docker-php-ext-install bcmath sockets mysqli gettext
-RUN docker-php-ext-enable igbinary redis mongodb
-RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
-
-#	Configure opcache
-# RUN echo '\
-# opcache.interned_strings_buffer=16\n\
-# opcache.load_comments=Off\n\
-# opcache.max_accelerated_files=16000\n\
-# opcache.save_comments=Off\n\
-# ' >> /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
-
+#RUN docker-php-ext-enable igbinary redis mongodb
 RUN docker-php-ext-install pdo bcmath intl mbstring readline soap xsl zip
+RUN docker-php-ext-install fileinfo
 RUN docker-php-ext-install mysqli pdo_mysql
+RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
 
 RUN mkdir -p /var/run/php
 
 COPY conf/php.ini /usr/local/etc/php/php.ini
 
 #INSTALL XDEBUG
-RUN pecl install xdebug && docker-php-ext-enable xdebug 
+# RUN pecl install xdebug && docker-php-ext-enable xdebug 
 
-RUN echo xdebug.mode=debug >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo xdebug.start_with_request=yes >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo xdebug.idekey=\"PHPSTORM\" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo xdebug.client_port=9003 >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo xdebug.remote.mode=req >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo xdebug.remote.handler=dbgp >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo xdebug.client_host=`/sbin/ip route|awk '/default/ { print $3 }'` >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# RUN echo xdebug.mode=debug >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# RUN echo xdebug.start_with_request=yes >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# RUN echo xdebug.idekey=\"PHPSTORM\" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# RUN echo xdebug.client_port=9003 >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# RUN echo xdebug.remote.mode=req >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# RUN echo xdebug.remote.handler=dbgp >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# RUN echo xdebug.client_host=`/sbin/ip route|awk '/default/ { print $3 }'` >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # INSTALL CRON FILES
 COPY conf /etc/cron.d/cron
