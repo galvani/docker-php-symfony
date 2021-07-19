@@ -1,4 +1,4 @@
-FROM php:7.4-fpm
+FROM php:7.1-fpm
 LABEL maintainer="galvani78@gmail.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
