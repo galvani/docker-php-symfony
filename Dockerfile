@@ -21,7 +21,6 @@ RUN yes | apt-get install systemd
 
 RUN apt-get install --no-install-recommends -y \
 	unzip \
-#	gnupglibmcrypt-dev  \
 	libicu-dev \
 	libpng-dev \
 	zlib1g-dev \
@@ -67,8 +66,8 @@ RUN pecl channel-update pecl.php.net
 RUN pecl install igbinary mongodb
 RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
 RUN docker-php-ext-install bcmath sockets mysqli gettext
-#RUN docker-php-ext-enable igbinary redis mongodb
-RUN docker-php-ext-install pdo bcmath intl mbstring readline soap xsl zip
+RUN docker-php-ext-enable igbinary redis mongodb
+RUN docker-php-ext-install pdo bcmath intl mbstring soap xsl zip
 RUN docker-php-ext-install fileinfo
 RUN docker-php-ext-install mysqli pdo_mysql
 RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
@@ -99,8 +98,11 @@ RUN touch /var/log/cron.log
 #RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
+# Install GO for mn=hsendmail
+COPY --from=golang:1.10 /usr/local/go /usr/local/go
+
 # Setup email forwarding via postfix to mailhog
-RUN curl -Lsf 'https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz' | tar -C '/usr/local' -xvzf -
+# RUN curl -Lsf 'https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz' | tar -C '/usr/local' -xvzf -
 ENV PATH /usr/local/go/bin:$PATH
 RUN go get github.com/mailhog/mhsendmail
 RUN cp /root/go/bin/mhsendmail /usr/bin/mhsendmail
