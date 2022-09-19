@@ -1,4 +1,4 @@
-FROM php:8.0-fpm
+FROM php:8.1-fpm
 LABEL maintainer="galvani78@gmail.com"
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -21,7 +21,6 @@ RUN yes | apt-get install systemd
 
 RUN apt-get install --no-install-recommends -y \
 	unzip \
-#	gnupglibmcrypt-dev  \
 	libicu-dev \
 	libpng-dev \
 	zlib1g-dev \
@@ -66,27 +65,36 @@ RUN docker-php-ext-configure gd --prefix=/usr --with-freetype --with-webp=  --wi
 RUN pecl channel-update pecl.php.net
 RUN pecl install igbinary mongodb
 RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
-RUN docker-php-ext-install bcmath sockets mysqli gettext
-#RUN docker-php-ext-enable igbinary redis mongodb
-RUN docker-php-ext-install pdo bcmath intl mbstring readline soap xsl zip
-RUN docker-php-ext-install fileinfo
-RUN docker-php-ext-install mysqli pdo_mysql
-RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
+# RUN docker-php-ext-install mongodb
+RUN docker-php-ext-install bcmath \
+    fileinfo \
+    sockets \
+    gettext \
+    pdo \
+    intl \
+    mbstring \
+    soap \
+    xsl \
+    zip \
+    mysqli \
+    pdo_mysql
+
+# RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
 
 RUN mkdir -p /var/run/php
 
 COPY conf/php.ini /usr/local/etc/php/php.ini
 
-#INSTALL XDEBUG
-# RUN pecl install xdebug && docker-php-ext-enable xdebug 
-
-# RUN echo xdebug.mode=debug >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-# RUN echo xdebug.start_with_request=yes >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-# RUN echo xdebug.idekey=\"PHPSTORM\" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-# RUN echo xdebug.client_port=9003 >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-# RUN echo xdebug.remote.mode=req >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-# RUN echo xdebug.remote.handler=dbgp >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-# RUN echo xdebug.client_host=`/sbin/ip route|awk '/default/ { print $3 }'` >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# INSTALL XDEBUG
+RUN pecl install xdebug-3.1.5 && docker-php-ext-enable xdebug
+#RUN echo xdebug.mode=debug >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.start_with_request=yes >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+ && echo xdebug.idekey=\"PHPSTORM\" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+ && echo xdebug.client_port=9003 >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+ && echo xdebug.remote.mode=req >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+ && echo xdebug.remote.handler=dbgp >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+ && echo "xdebug.discover_client_host=1" >> /usr/local/etc/php/conf.d/xdebug.ini \
+ && echo xdebug.client_host=`/sbin/ip route|awk '/default/ { print $3 }'` >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # INSTALL CRON FILES
 COPY conf /etc/cron.d/cron
@@ -96,12 +104,12 @@ RUN chmod 0755 /etc/cron.d/cron
 RUN touch /var/log/cron.log
 
 # Install composer version 2
-#RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
+COPY --from=golang:1.10 /usr/local/go /usr/local/
 # Setup email forwarding via postfix to mailhog
-RUN curl -Lsf 'https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz' | tar -C '/usr/local' -xvzf -
-ENV PATH /usr/local/go/bin:$PATH
+#RUN curl -Lsf 'https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz' | tar -C '/usr/local' -xvzf -
+#ENV PATH /usr/local/go/bin:$PATH
 RUN go get github.com/mailhog/mhsendmail
 RUN cp /root/go/bin/mhsendmail /usr/bin/mhsendmail
 RUN echo 'sendmail_path = /usr/bin/mhsendmail --smtp-addr mailhog:1025' >> /usr/local/etc/php/php.ini
