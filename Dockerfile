@@ -1,5 +1,5 @@
 FROM php:8.1-fpm
-LABEL maintainer="galvani78@gmail.com"
+LABEL maintainer="Jan Kozak <galvani78@gmail.com>"
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -56,17 +56,21 @@ RUN apt-get install --no-install-recommends -y \
     libssl-dev \
     libmcrypt-dev \
     libonig-dev \
-	openssl
+	openssl \
+    librabbitmq-dev
 
 RUN docker-php-ext-configure gd --prefix=/usr --with-freetype --with-webp=  --with-jpeg \
     && docker-php-ext-install gd exif 
 
 #	Install redis and igbinary
 RUN pecl channel-update pecl.php.net
-RUN pecl install igbinary mongodb
+RUN pecl install igbinary mongodb amqp
+RUN docker-php-ext-enable amqp
 RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
+
 # RUN docker-php-ext-install mongodb
-RUN docker-php-ext-install bcmath \
+RUN docker-php-ext-install  \
+    bcmath \
     fileinfo \
     sockets \
     gettext \
