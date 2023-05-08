@@ -17,8 +17,6 @@ RUN locale-gen en_US.UTF-8
 
 RUN yes | apt-get install systemd
 
-# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 11CD8CFCEEB5E8F4
-
 RUN apt-get install --no-install-recommends -y \
 	unzip \
 	libicu-dev \
@@ -42,6 +40,8 @@ RUN apt-get install --no-install-recommends -y \
 	libwebp-dev \
 	libgmp-dev \
 	libldap2-dev \
+	libc-client-dev \
+	libkrb5-dev \
 	netcat sqlite3 \
 	libsqlite3-dev \
 	iproute2 \
@@ -56,49 +56,34 @@ RUN apt-get install --no-install-recommends -y \
     libssl-dev \
     libmcrypt-dev \
     libonig-dev \
-	openssl \
-    librabbitmq-dev
+	librabbitmq-dev \
+	openssl
 
 RUN docker-php-ext-configure gd --prefix=/usr --with-freetype --with-webp=  --with-jpeg \
     && docker-php-ext-install gd exif 
 
 #	Install redis and igbinary
 RUN pecl channel-update pecl.php.net
-RUN pecl install igbinary mongodb amqp
-RUN docker-php-ext-enable amqp
+RUN pecl install igbinary mongodb amqp xdebug
 RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
-
-# RUN docker-php-ext-install mongodb
-RUN docker-php-ext-install  \
-    bcmath \
-    fileinfo \
-    sockets \
-    gettext \
-    pdo \
-    intl \
-    mbstring \
-    soap \
-    xsl \
-    zip \
-    mysqli \
-    pdo_mysql
-
-# RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
+RUN docker-php-ext-enable igbinary redis mongodb amqp xdebug
+RUN docker-php-ext-configure imap --with-kerberos --with-imap-ssl && docker-php-ext-install imap
+RUN docker-php-ext-install bcmath sockets mysqli gettext
+RUN docker-php-ext-install pdo bcmath intl mbstring soap xsl zip fileinfo
+RUN docker-php-ext-install mysqli pdo_mysql
+RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
 
 RUN mkdir -p /var/run/php
 
 COPY conf/php.ini /usr/local/etc/php/php.ini
 
-# INSTALL XDEBUG
-RUN pecl install xdebug-3.1.5 && docker-php-ext-enable xdebug
-#RUN echo xdebug.mode=debug >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-RUN echo xdebug.start_with_request=yes >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
- && echo xdebug.idekey=\"PHPSTORM\" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
- && echo xdebug.client_port=9003 >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
- && echo xdebug.remote.mode=req >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
- && echo xdebug.remote.handler=dbgp >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
- && echo "xdebug.discover_client_host=1" >> /usr/local/etc/php/conf.d/xdebug.ini \
- && echo xdebug.client_host=`/sbin/ip route|awk '/default/ { print $3 }'` >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.mode=debug >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.start_with_request=yes >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.idekey=\"PHPSTORM\" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.client_port=9003 >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.remote.mode=req >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.remote.handler=dbgp >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+RUN echo xdebug.client_host=`/sbin/ip route|awk '/default/ { print $3 }'` >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # INSTALL CRON FILES
 COPY conf /etc/cron.d/cron
@@ -110,10 +95,11 @@ RUN touch /var/log/cron.log
 # Install composer version 2
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-COPY --from=golang:1.10 /usr/local/go /usr/local/
+# Install GO for mn=hsendmail
+COPY --from=golang:1.10 /usr/local/go /usr/local/go
+
 # Setup email forwarding via postfix to mailhog
-#RUN curl -Lsf 'https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz' | tar -C '/usr/local' -xvzf -
-#ENV PATH /usr/local/go/bin:$PATH
+ENV PATH /usr/local/go/bin:$PATH
 RUN go get github.com/mailhog/mhsendmail
 RUN cp /root/go/bin/mhsendmail /usr/bin/mhsendmail
 RUN echo 'sendmail_path = /usr/bin/mhsendmail --smtp-addr mailhog:1025' >> /usr/local/etc/php/php.ini
