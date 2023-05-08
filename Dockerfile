@@ -1,5 +1,5 @@
 FROM php:8.0-fpm
-LABEL maintainer="galvani78@gmail.com"
+LABEL maintainer="Jan Kozak <galvani78@gmail.com>"
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -16,8 +16,6 @@ RUN apt-get install -y
 RUN locale-gen en_US.UTF-8
 
 RUN yes | apt-get install systemd
-
-# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 11CD8CFCEEB5E8F4
 
 RUN apt-get install --no-install-recommends -y \
 	unzip \
@@ -42,6 +40,8 @@ RUN apt-get install --no-install-recommends -y \
 	libwebp-dev \
 	libgmp-dev \
 	libldap2-dev \
+	libc-client-dev \
+	libkrb5-dev \
 	netcat sqlite3 \
 	libsqlite3-dev \
 	iproute2 \
@@ -56,6 +56,7 @@ RUN apt-get install --no-install-recommends -y \
     libssl-dev \
     libmcrypt-dev \
     libonig-dev \
+	librabbitmq-dev \
 	openssl
 
 RUN docker-php-ext-configure gd --prefix=/usr --with-freetype --with-webp=  --with-jpeg \
@@ -63,21 +64,18 @@ RUN docker-php-ext-configure gd --prefix=/usr --with-freetype --with-webp=  --wi
 
 #	Install redis and igbinary
 RUN pecl channel-update pecl.php.net
-RUN pecl install igbinary mongodb
+RUN pecl install igbinary mongodb amqp xdebug
 RUN pecl bundle redis && cd redis && phpize && ./configure --enable-redis-igbinary && make && make install
+RUN docker-php-ext-enable igbinary redis mongodb amqp xdebug
+RUN docker-php-ext-configure imap --with-kerberos --with-imap-ssl && docker-php-ext-install imap
 RUN docker-php-ext-install bcmath sockets mysqli gettext
-RUN docker-php-ext-enable igbinary redis mongodb
-RUN docker-php-ext-install pdo bcmath intl mbstring soap xsl zip
-RUN docker-php-ext-install fileinfo
+RUN docker-php-ext-install pdo bcmath intl mbstring soap xsl zip fileinfo
 RUN docker-php-ext-install mysqli pdo_mysql
 RUN docker-php-source delete && rm -r /tmp/* /var/cache/*
 
 RUN mkdir -p /var/run/php
 
 COPY conf/php.ini /usr/local/etc/php/php.ini
-
-#INSTALL XDEBUG
-RUN pecl install xdebug && docker-php-ext-enable xdebug 
 
 RUN echo xdebug.mode=debug >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 RUN echo xdebug.start_with_request=yes >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
@@ -95,14 +93,12 @@ RUN chmod 0755 /etc/cron.d/cron
 RUN touch /var/log/cron.log
 
 # Install composer version 2
-#RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 # Install GO for mn=hsendmail
 COPY --from=golang:1.10 /usr/local/go /usr/local/go
 
 # Setup email forwarding via postfix to mailhog
-# RUN curl -Lsf 'https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz' | tar -C '/usr/local' -xvzf -
 ENV PATH /usr/local/go/bin:$PATH
 RUN go get github.com/mailhog/mhsendmail
 RUN cp /root/go/bin/mhsendmail /usr/bin/mhsendmail
